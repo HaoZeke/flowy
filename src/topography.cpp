@@ -315,21 +315,51 @@ std::pair<double, Vector2> Topography::height_and_slope( const Vector2 & coordin
     const Vector2 cell_center_lower_left
         = { x_data[idx_x_lower] + 0.5 * cell_size(), y_data[idx_y_lower] + 0.5 * cell_size() };
 
-    const double Z00 = height_data( idx_x_lower, idx_y_lower );
-    const double Z10 = height_data( idx_x_higher, idx_y_lower );
-    const double Z01 = height_data( idx_x_lower, idx_y_higher );
-    const double Z11 = height_data( idx_x_higher, idx_y_higher );
+    // Which triangle are we in?
 
-    const double alpha = Z10 - Z00;
-    const double beta  = Z01 - Z00;
-    const double gamma = Z11 + Z00 - Z10 - Z01;
+    const Vector2 diff = coordinates - cell_center_lower_left;
+    const double dist2 = diff[0] * diff[0] + diff[1] * diff[1]; // square of the distance to the lower left corner
 
-    const Vector2 xp = ( coordinates - cell_center_lower_left ) / cell_size();
+    double c{}, alpha{}, beta{};
 
-    const double height = Z00 + alpha * xp[0] + beta * xp[1] + gamma * xp[0] * xp[1];
-    const Vector2 slope = { alpha + gamma * xp[1], beta + gamma * xp[0] };
+    if( dist2 < 0.5 * cell_size() * cell_size() ) // we are in the lower left triangel
+    {
+        c     = height_data( idx_x_lower, idx_y_lower );
+        alpha = ( height_data( idx_x_higher, idx_y_lower ) - height_data( idx_x_lower, idx_y_lower ) )
+                / cell_size(); // derivative in x direction
+        beta = ( height_data( idx_x_lower, idx_y_higher ) - height_data( idx_x_lower, idx_y_lower ) )
+               / cell_size(); // derivative in y
+    }
+    else // we are in the upper right triangle
+    {
+        c     = height_data( idx_x_higher, idx_y_higher );
+        alpha = ( height_data( idx_x_higher, idx_y_higher ) - height_data( idx_x_lower, idx_y_higher ) )
+                / cell_size(); // derivative in x direction
+        beta = ( height_data( idx_x_higher, idx_y_higher ) - height_data( idx_x_higher, idx_y_lower ) )
+               / cell_size(); // derivative in y
+    }
 
-    return { height, -slope / cell_size() };
+    double height = c + alpha * coordinates[0] + beta * coordinates[1];
+
+    // height = height_data(idx_x, idx_y);
+
+    const Vector2 slope = { alpha, beta };
+
+    // const double Z00 = height_data( idx_x_lower, idx_y_lower );
+    // const double Z10 = height_data( idx_x_higher, idx_y_lower );
+    // const double Z01 = height_data( idx_x_lower, idx_y_higher );
+    // const double Z11 = height_data( idx_x_higher, idx_y_higher );
+
+    // const double alpha = Z10 - Z00;
+    // const double beta  = Z01 - Z00;
+    // const double gamma = Z11 + Z00 - Z10 - Z01;
+
+    // const Vector2 xp = ( coordinates - cell_center_lower_left ) / cell_size();
+
+    // const double height = Z00 + alpha * xp[0] + beta * xp[1] + gamma * xp[0] * xp[1];
+    // const Vector2 slope = { alpha + gamma * xp[1], beta + gamma * xp[0] };
+
+    return { height, -slope };
 }
 
 void Topography::add_lobe( const Lobe & lobe, std::optional<int> idx_cache )
